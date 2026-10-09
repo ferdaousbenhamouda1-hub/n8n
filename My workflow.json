@@ -1,0 +1,741 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        560,
+        -144
+      ],
+      "id": "32590d69-4946-45ce-a0de-a197e318900e",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "=cours-upload",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -160,
+        -80
+      ],
+      "id": "9cc02012-3786-49ae-b113-131c4350fa9d",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "VOTRE_CLE_ICI",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": ""
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: \"openai/gpt-oss-20b\",\n  messages: [\n    {\n      role: \"system\",\n      content: \"Tu es un assistant pedagogique intelligent. A partir du cours fourni, tu dois generer un resume structure.\"\n    },\n    {\n      role: \"user\",\n      content: \"Voici le contenu du cours : \" + $('Edit Fields').first().json.monTexte\n    }\n  ]\n}) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        288,
+        -48
+      ],
+      "id": "1d3e3dc5-3dd2-4180-8214-5f7f843dfd85",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c7288ca1-85c0-4b10-a74d-151769f2b578",
+              "name": "=monTexte",
+              "value": "={{ $json.text.substring(0, 2000) }}",
+              "type": "string"
+            },
+            {
+              "id": "1a149410-7f47-40f9-8b61-e11ac1c17ce8",
+              "name": "reponse_ia",
+              "value": "={{ $json.choices[0].message.content }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        32,
+        208
+      ],
+      "id": "f19fb50f-9d87-4164-b7b6-5686e27d798c",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "amount": 30
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -176,
+        176
+      ],
+      "id": "0c7eed3a-eeef-4708-9dee-951be4ec84ee",
+      "name": "Wait",
+      "webhookId": "8df5b4ed-a463-4ee0-a126-f73ef2ee5dd2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Récupération sécurisée du texte de l'IA\nconst item = $input.first().json;\n\nlet resumeText = \n  item?.choices?.[0]?.message?.content || \n  item?.output || \n  item?.text || \n  item?.content || \n  \"Pas de texte trouvé.\";\n\n// 2. Nettoyage et conversion du Markdown en HTML propre pour Word\nlet formattedText = resumeText\n  // Titres Markdown (####, ###, ##, #)\n  .replace(/^#### (.*$)/gim, '<h4 style=\"color:#2E75B6; font-family:Calibri; margin-top:15px; margin-bottom:5px;\">$1</h4>')\n  .replace(/^### (.*$)/gim, '<h3 style=\"color:#2E75B6; font-family:Calibri; margin-top:18px; margin-bottom:5px;\">$1</h3>')\n  .replace(/^## (.*$)/gim, '<h2 style=\"color:#1F4E78; font-family:Calibri; margin-top:20px; margin-bottom:8px;\">$1</h2>')\n  .replace(/^# (.*$)/gim, '<h1 style=\"color:#0F243E; font-family:Calibri; border-bottom:2px solid #1F4E78; padding-bottom:5px;\">$1</h1>')\n  \n  // Lignes de séparation (---)\n  .replace(/^---$/gim, '<hr style=\"border:0; border-top:1px solid #ccc; margin:15px 0;\">')\n  \n  // Mettre en gras (**texte** ou <b>texte</b>)\n  .replace(/\\*\\*(.*?)\\*\\*/g, '<b>$1</b>')\n  \n  // Nettoyage de la notation LaTeX simple pour lisibilité dans Word\n  .replace(/\\\\\\[/g, '<div style=\"text-align:center; margin:10px 0; font-style:italic; background:#f2f4f7; padding:8px; border-radius:4px;\">')   .replace(/\\\\\\]/g, '</div>')\n  .replace(/\\\\\\((.*?)\\\\\\)/g, '<i>$1</i>')\n  .replace(/\\\\quad/g, ' &nbsp;&nbsp; ')\n  .replace(/\\\\xrightarrow\\{(.*?)\\}/g, ' &rarr; $1 &rarr; ')\n  \n  // Sauts de ligne\n  .replace(/\\n/g, '<br>');\n\n// Convertir les puces Markdown (- ) en éléments propres\nformattedText = formattedText.replace(/<br>- (.*?)(?=<br>|$)/g, '<br>&bull; $1');\n\n// 3. Document HTML/Word avec styles d'impression et de tableaux\nconst docxHtmlContent = `\n<html xmlns:o='urn:schemas-microsoft-com:office:office' \n      xmlns:w='urn:schemas-microsoft-com:office:word' \n      xmlns='http://www.w3.org/TR/REC-html40'>\n<head>\n    <meta charset=\"utf-8\">\n    <title>Résumé de cours</title>\n    <!--[if gte mso 9]>\n    <xml>\n      <w:WordDocument>\n        <w:View>Print</w:View>\n        <w:Zoom>100</w:Zoom>\n        <w:DoNotOptimizeForBrowser/>\n      </w:WordDocument>\n    </xml>\n    <![endif]-->\n    <style>\n        body {\n            font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;\n            font-size: 11pt;\n            line-height: 1.6;\n            color: #262626;\n            margin: 1in;\n        }\n        h1 {\n            color: #1F4E78;\n            font-size: 20pt;\n            border-bottom: 2px solid #1F4E78;\n            padding-bottom: 6px;\n            margin-bottom: 20px;\n        }\n        .content-box {\n            text-align: justify;\n        }\n        blockquote {\n            background-color: #f9f9f9;\n            border-left: 4px solid #1F4E78;\n            margin: 15px 0;\n            padding: 10px 15px;\n            font-style: italic;\n        }\n    </style>\n</head>\n<body>\n    <h1>Résumé de cours - Généré par IA</h1>\n    <div class=\"content-box\">\n        ${formattedText}\n    </div>\n</body>\n</html>\n`;\n\n// 4. Conversion en Base64 pour n8n (avec transmission du texte pour Qdrant)\nconst base64Data = Buffer.from(docxHtmlContent, 'utf-8').toString('base64');\n\nreturn [{\n  json: { \n    text: resumeText, // Ajouté pour que Qdrant puisse le lire via {{ $json.text }}\n    message: \"Document nettoyé et généré avec succès\",\n    fileName: \"Resume_de_cours.docx\"\n  },\n  binary: {\n    data: {\n      data: base64Data,\n      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',\n      fileName: 'Resume_de_cours.docx'\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        160
+      ],
+      "id": "92c31078-dc6a-403d-af40-678843c183ab",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "sendTo": "ferdaousbenhamouda1@gmail.com",
+        "subject": "Résumé de mon cours généré par l'IA.",
+        "message": "={{ $node[\"HTTP Request\"].json.choices[0].message.content }}",
+        "options": {
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {}
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1040,
+        400
+      ],
+      "id": "e7d5b93f-d2fb-432c-9c29-bcd7c458eac0",
+      "name": "Send a message",
+      "webhookId": "4d9ee4ad-e679-48e7-8c53-19b5ba2eb1ef",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "XyBiCSeuTMxlhmYW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=je change ",
+        "options": {
+          "systemMessage": "En tant qu'expert en ingénierie pédagogique, commence par utiliser l'outil de recherche dans la base de données vectorielle pour chercher des documents de cours pertinents. \n\n- SI la base de données Qdrant te renvoie du contenu : base-toi dessus pour concevoir un examen technique original.\n- SI la base de données Qdrant est vide ou ne renvoie rien : utilise tes connaissances expertes en programmation Java et architecture logicielle pour concevoir l'examen.\n\nDans tous les cas, conçois un tout nouvel examen technique original (sans QCM) et respecte strictement ce format (maximum 150 mots au total, sans introduction, sans conclusion et sans corrigé) :\n\nPARTIE A - Questions de cours (2) :\n- Q1 : [Question technique ouverte]\n- Q2 : [Question technique ouverte complémentaire]\n\nPARTIE B - Exercices pratiques / Étude de cas (2) :\n- Exercice 1 : [Énoncé d'application directe]\n- Exercice 2 : [Énoncé d'analyse ou de conception avancé]\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -128,
+        -560
+      ],
+      "id": "412e77a4-a6b9-4d00-bf47-d513253c70d6",
+      "name": "AI Agent",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "test-agent",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        -80,
+        -304
+      ],
+      "id": "ab2b45ef-b71e-441d-b2c0-4144d582454e",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "analyse-exmen",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1248,
+        -432
+      ],
+      "id": "c7e5cd3a-3c09-4fd9-aa4d-eaa98ba07b91",
+      "name": "Webhook",
+      "webhookId": "4b1cc14a-391e-41a8-a42a-de5a98ff6c9b"
+    },
+    {
+      "parameters": {
+        "sendTo": "ferdaousbenhamouda1@gmail.com",
+        "subject": "Résultat de l'analyse de votre examen",
+        "message": "={{ $json.text }}\n",
+        "options": {
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {}
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        592,
+        -608
+      ],
+      "id": "9edabe5e-1480-412d-b79a-52e1c6f2507d",
+      "name": "Send a message1",
+      "webhookId": "0f794e09-c020-4249-b0ab-5e3eb3d96156",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "XyBiCSeuTMxlhmYW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "qwen/qwen3.8-27b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -208,
+        -352
+      ],
+      "id": "5633622b-c656-4e65-9788-85f9c4268fa5",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "NJInMjycMThae86l",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const binaryKey = Object.keys(items[0].binary || {})[0];\nconst binaryData = items[0].binary[binaryKey];\nconst mimeType = binaryData.mimeType;\n\n// Utilisation de la bonne méthode helper pour récupérer le buffer\nconst buffer = await this.helpers.getBinaryDataBuffer(0, binaryKey);\nconst base64Data = Buffer.from(buffer).toString('base64');\n\nreturn [{\n  json: {\n    base64: `data:${mimeType};base64,${base64Data}`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1152,
+        -864
+      ],
+      "id": "7ad9418b-fb85-413c-86f0-41c5e52d6d87",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "method": "=POST",
+        "url": "=https://api.mistral.ai/v1/ocr",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"mistral-ocr-latest\",\n  \"document\": {\n    \"type\": \"document_url\",\n    \"document_url\": \"{{ $json.base64 }}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -704,
+        -816
+      ],
+      "id": "15220540-1f80-45a6-8882-f414417b61d2",
+      "name": "HTTP Request2",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Lsz5v4Xz5SdIStnZ",
+          "name": "Header Auth account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Récupère le texte de l'examen généré par l'AI Agent\nconst item = $input.first();\nconst examenText = item && item.json ? (item.json.output || item.json.text || \"Examen généré\") : \"Examen généré\";\n\n// Transformation des sauts de ligne en balises HTML <br> pour un affichage propre\nconst formattedText = String(examenText)\n  .replace(/&/g, '&amp;')\n  .replace(/</g, '&lt;')\n  .replace(/>/g, '&gt;')\n  .replace(/\\n/g, '<br>');\n\n// Construction d'un document HTML compatible Word (.doc)\nconst wordHtml = `\n<html xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w=\"urn:schemas-microsoft-com:office:word\" xmlns=\"http://www.w3.org/TR/REC-html40\">\n<head>\n<meta charset=\"utf-8\">\n<title>Examen Technique</title>\n<style>\n  body {\n    font-family: 'Calibri', Arial, sans-serif;\n    font-size: 11pt;\n    color: #333333;\n    line-height: 1.6;\n    margin: 40px;\n  }\n  h1 {\n    color: #2C3E50;\n    font-size: 18pt;\n    border-bottom: 2px solid #2C3E50;\n    padding-bottom: 8px;\n    margin-bottom: 20px;\n  }\n  .footer {\n    font-style: italic;\n    font-size: 9pt;\n    color: #7F8C8D;\n    margin-top: 30px;\n    border-top: 1px solid #E0E0E0;\n    padding-top: 10px;\n  }\n</style>\n</head>\n<body>\n  <h1>EXAMEN TECHNIQUE - EVALUATION JAVA (ENISO)</h1>\n  \n  <div>${formattedText}</div>\n  \n  <div class=\"footer\">\n    Généré automatiquement via n8n &amp; IA\n  </div>\n</body>\n</html>\n`;\n\n// Encodage propre du Buffer\nconst buffer = Buffer.from(wordHtml, 'utf-8');\n\nreturn [{\n  json: {\n    success: true\n  },\n  binary: {\n    data: {\n      data: buffer.toString('base64'),\n      mimeType: 'application/msword',\n      fileName: 'Examen_Technique.doc'\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        288,
+        -576
+      ],
+      "id": "0a79c50c-bbc1-4455-823d-e95df9f614e6",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Use this tool to search through ENISO course documents and find study material.",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "=cours-eniso\n",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        192,
+        -384
+      ],
+      "id": "86434d6c-ed4c-4b72-a03e-46dd9fb770b2",
+      "name": "Qdrant Vector Store2",
+      "credentials": {
+        "qdrantApi": {
+          "id": "YUU3C8Sdza51NeOT",
+          "name": "Qdrant account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        224,
+        -224
+      ],
+      "id": "855c09e8-90f8-41df-bb39-53e536f78120",
+      "name": "Embeddings Google Gemini",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "yB9b97Nxg7ZC1BLC",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://f1e6ab75-a52d-446b-81cf-57fba0e0b9b8.eu-west-1-0.aws.cloud.qdrant.io:6333/collections/cours_eniso/points",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"points\": [\n    {\n      \"id\": 1,\n      \"vector\": [0.1, 0.2, 0.3],\n      \"payload\": {\n        \"text\": \"{{ $json.txt }}\"\n      }\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        832,
+        64
+      ],
+      "id": "6d788f16-06dc-45cb-9405-a8534f8d8511",
+      "name": "HTTP Request1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Lsz5v4Xz5SdIStnZ",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "https://f1e6ab75-a52d-446b-81cf-57fba0e0b9b8.eu-west-1-0.aws.cloud.qdrant.io/collections/cours_eniso",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"vectors\": {\n    \"size\": 768,\n    \"distance\": \"Cosine\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        336,
+        496
+      ],
+      "id": "d6c22f27-5a05-4cb6-a61a-6e91a5699e9f",
+      "name": "HTTP Request3",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Lsz5v4Xz5SdIStnZ",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cours-upload",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -528,
+        -16
+      ],
+      "id": "6818475b-16f8-4f7d-a2b6-4fe1b2d3f0c2",
+      "name": "Webhook1",
+      "webhookId": "3c7aa2b0-88a9-47a4-8ecb-0a5f5fe64333"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Contenu réduit (Moitié de l'examen : Exercice 1 uniquement)\nlet resumeText = `\nRÉPUBLIQUE TUNISIENNE - ENISO\nEXAMEN : Programmation Orientée Objet (Java - Mai 2022)\nEnseignante : Takoua Abdellatif\n\n---\n\nEXERCICE 1 (8 points) : Réseau de capteurs\nDans un réseau de capteurs, on considère une série de capteurs ayant des identifiants uniques ID, avec leurs descriptifs.\n\n1. Écrire en Java une classe Capteur représentant un capteur (redéfinir toString() et equals).\n2. Soit la classe ReseauCapteurs qui encapsule un ensemble de capteurs dans une structure illimitée. Justifiez le choix de TreeMap comme structure.\n3. Écrire la classe ReseauCapteurs en Java avec les méthodes :\n   - Constructeur\n   - add et remove (ajout/suppression)\n   - getDescriptif(id) (retourne le descriptif)\n   - getMaxID() et getMinID() (ID le plus grand et le plus petit)\n   - Méthode renvoyant le nombre de capteurs.\n4. Donner un diagramme de classe décrivant les classes de l'énoncé et leurs relations.\n`;\n\n// 2. Nettoyage et formatage HTML pour Word\nlet formattedText = resumeText\n  .replace(/^#### (.*$)/gim, '<h4 style=\"color:#2E75B6; font-family:Calibri; margin-top:15px; margin-bottom:5px;\">$1</h4>')\n  .replace(/^### (.*$)/gim, '<h3 style=\"color:#2E75B6; font-family:Calibri; margin-top:18px; margin-bottom:5px;\">$1</h3>')\n  .replace(/^## (.*$)/gim, '<h2 style=\"color:#1F4E78; font-family:Calibri; margin-top:20px; margin-bottom:8px;\">$1</h2>')\n  .replace(/^# (.*$)/gim, '<h1 style=\"color:#0F243E; font-family:Calibri; border-bottom:2px solid #1F4E78; padding-bottom:5px;\">$1</h1>')\n  .replace(/^---$/gim, '<hr style=\"border:0; border-top:1px solid #ccc; margin:15px 0;\">')\n  .replace(/\\*\\*(.*?)\\*\\*/g, '<b>$1</b>')\n  .replace(/\\n/g, '<br>');\n\nformattedText = formattedText.replace(/<br>- (.*?)(?=<br>|$)/g, '<br>&bull; $1');\n\n// 3. Document HTML Word\nconst docxHtmlContent = `\n<html xmlns:o='urn:schemas-microsoft-com:office:office' \n      xmlns:w='urn:schemas-microsoft-com:office:word' \n      xmlns='http://www.w3.org/TR/REC-html40'>\n<head>\n    <meta charset=\"utf-8\">\n    <title>Exposé Exercice 1 Java</title>\n    <!--[if gte mso 9]>\n    <xml>\n      <w:WordDocument>\n        <w:View>Print</w:View>\n        <w:Zoom>100</w:Zoom>\n        <w:DoNotOptimizeForBrowser/>\n      </w:WordDocument>\n    </xml>\n    <![endif]-->\n    <style>\n        body {\n            font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;\n            font-size: 11pt;\n            line-height: 1.6;\n            color: #262626;\n            margin: 1in;\n        }\n        h1 {\n            color: #1F4E78;\n            font-size: 16pt;\n            border-bottom: 2px solid #1F4E78;\n            padding-bottom: 6px;\n            margin-bottom: 20px;\n        }\n        .content-box {\n            text-align: justify;\n        }\n    </style>\n</head>\n<body>\n    <h1>Examen POO Java - Exercice 1 (ENISO)</h1>\n    <div class=\"content-box\">\n        ${formattedText}\n    </div>\n</body>\n</html>\n`;\n\n// 4. Conversion en Base64 pour n8n\nconst base64Data = Buffer.from(docxHtmlContent, 'utf-8').toString('base64');\n\nreturn [{\n  json: { \n    text: resumeText,\n    message: \"Moitié d'examen convertie avec succès\",\n    fileName: \"Exercice1_Java_ENISO.docx\"\n  },\n  binary: {\n    data: {\n      data: base64Data,\n      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',\n      fileName: 'Exercice1_Java_ENISO.docx'\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1456,
+        -816
+      ],
+      "id": "27a6d3eb-0596-405f-9f9a-c0ba45f58157",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -960,
+        -400
+      ],
+      "id": "ee3a0b71-d506-49c6-b9a9-24d57caec9d6",
+      "name": "Extract from File1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -736,
+        -288
+      ],
+      "id": "1a868e5b-d1dc-4bdd-9082-4d30343b5598",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -688,
+        -496
+      ],
+      "id": "cab88b1d-448e-4140-a98d-238b48fd6193",
+      "name": "HTTP Request4"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  item.json.myNewField = 1;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -464,
+        -416
+      ],
+      "id": "3fb15417-62b2-4813-9bec-145298e35668",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  item.json.myNewField = 1;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        -240
+      ],
+      "id": "96bc4873-5a8a-4128-974b-7fe1944c883b",
+      "name": "Code in JavaScript5"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1520,
+        -160
+      ],
+      "id": "66024fc5-349c-4139-818e-a8a91c6781ce",
+      "name": "Wait1",
+      "webhookId": "04ac11f8-8dea-4c3a-903e-01dfc6ee1bfc"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message1": {
+      "main": [
+        []
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract from File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        []
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant Vector Store2": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Qdrant Vector Store2",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        []
+      ]
+    },
+    "HTTP Request3": {
+      "main": [
+        []
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        []
+      ]
+    },
+    "Extract from File1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        []
+      ]
+    },
+    "HTTP Request4": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "eefc2a4b-ede5-4e19-bf73-aae6854f66af",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fdb152e8a5589d298d13eaf72f373faf429d4ec7573e842c86dcdf623e491049"
+  },
+  "nodeGroups": [],
+  "id": "MPndl1KR7liGEGeT",
+  "tags": []
+}

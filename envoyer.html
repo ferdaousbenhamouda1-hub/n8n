@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ENISO - Portail d'Importation n8n</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --accent: #38bdf8;
+            --radius: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 40px 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+
+        header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #818cf8, #38bdf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius);
+            padding: 28px;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .card h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-drop-zone {
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .file-drop-zone:hover {
+            border-color: var(--accent);
+            background: rgba(56, 189, 248, 0.03);
+        }
+
+        .file-drop-zone input[type="file"] {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .file-label-text {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .file-label-text strong {
+            color: var(--accent);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s ease, box-shadow 0.2s ease;
+            margin-top: 18px;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn:hover {
+            background: var(--primary-hover);
+            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn.test {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn.test:hover {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn.examen {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+        }
+
+        .btn.examen:hover {
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            box-shadow: 0 6px 16px rgba(14, 165, 233, 0.4);
+        }
+
+        .badge {
+            font-size: 11px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 3px 8px;
+            border-radius: 20px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>ENISO Knowledge Hub</h1>
+            <p>Portail d'injection de documents vers n8n & Qdrant</p>
+        </header>
+
+        <!-- 1. ZONE DE TEST (Path: /test) -->
+        <div class="card" style="border: 1px solid rgba(16, 185, 129, 0.4);">
+            <h2><span>⚡</span> Zone de Test Fichier <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">/webhook-test/test</span></h2>
+            <form action="https://ferrdd.app.n8n.cloud/webhook-test/test" method="POST" enctype="multipart/form-data">
+                <div class="file-drop-zone">
+                    <span class="file-label-text">Glissez votre fichier de test ici ou <strong>parcourez</strong></span>
+                    <input type="file" name="test-file" accept=".pdf" required onchange="updateFileName(this)">
+                </div>
+                <button type="submit" class="btn test">Envoyer le Test vers n8n</button>
+            </form>
+        </div>
+
+        <!-- 2. ZONE DE COURS (Path: /cours-upload) -->
+        <div class="card">
+            <h2><span>📚</span> Envoyer un Cours PDF <span class="badge">/cours-upload</span></h2>
+            <form action="https://ferrdd.app.n8n.cloud/webhook-test/cours-upload" method="POST" enctype="multipart/form-data">
+                <div class="file-drop-zone">
+                    <span class="file-label-text">Glissez votre cours ici ou <strong>parcourez</strong></span>
+                    <input type="file" name="cours-upload" accept=".pdf" required onchange="updateFileName(this)">
+                </div>
+                <button type="submit" class="btn">Transférer le Cours</button>
+            </form>
+        </div>
+
+        <!-- 3. ZONE D'EXAMENS (Path: /analyse-exmen) -->
+        <div class="card">
+            <h2><span>📝</span> Envoyer des Examens PDF <span class="badge">/analyse-exmen</span></h2>
+            <form action="https://ferrdd.app.n8n.cloud/webhook-test/analyse-exmen" method="POST" enctype="multipart/form-data">
+                <div class="file-drop-zone">
+                    <span class="file-label-text">Sélectionnez vos examens <strong>(Ctrl + Clic)</strong></span>
+                    <input type="file" name="analyse-examen" accept=".pdf" multiple required onchange="updateFileName(this)">
+                </div>
+                <button type="submit" class="btn examen">Lancer l'analyse des Examens</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function updateFileName(input) {
+            const dropZone = input.closest('.file-drop-zone');
+            const textSpan = dropZone.querySelector('.file-label-text');
+            if (input.files && input.files.length > 0) {
+                if (input.files.length === 1) {
+                    textSpan.innerHTML = `Fichier sélectionné : <strong style="color: #38bdf8;">${input.files[0].name}</strong>`;
+                } else {
+                    textSpan.innerHTML = `<strong style="color: #38bdf8;">${input.files.length} fichiers sélectionnés</strong>`;
+                }
+            }
+        }
+    </script>
+</body>
+</html>0
